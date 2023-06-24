@@ -1,0 +1,103 @@
+program = _{ WHITESPACE* ~ decls ~ function+ ~ WHITESPACE* }
+
+base_type = { (int | float | void) ~ ptr* }
+    int = { "int" }
+    float = { "float" }
+    void = { "void" }
+    ptr = { "*" }
+
+// Declarations
+decls = _{ (func_decl | var_decl | str_decl)* }
+func_decl = { base_type ~ ident ~ "(" ~ params? ~ ")" ~ ";" }
+var_decl = { base_type ~ ident ~ ";" }
+str_decl = { "string" ~ ident ~ "=" ~ str_lit ~ ";" }
+
+// Functions
+function = { base_type ~ ident ~ "(" ~ params ~ ")" 
+    ~ "{" ~ var_decl* ~ statements ~ "}" }
+params = { param? ~ ("," ~ param)* }
+param = { base_type ~ ident }
+		 		 
+// Statements
+statements = { statement+ }
+
+statement = _{
+    base_stmt ~ ";"
+    | if_stmt
+    | while_stmt
+}
+
+base_stmt = _{
+    assign_stmt
+    | call
+    | return_stmt
+}
+assign_stmt = { lval ~ "=" ~ expr }
+lval = { unit_prefix* ~ unit ~ unit_postfix* ~ (bin_op ~ unit_prefix* ~ unit ~ unit_postfix*)* }
+    unit_prefix = _{ neg | cast | address }
+        address = { "*" }
+    unit_postfix = _{ array_expr }
+unit = _{
+    ident
+    | int_lit
+    | "(" ~ lval ~ ")"
+}
+return_stmt = { "return" ~ expr? }
+
+if_stmt = { "if" ~ "(" ~ cond ~ ")" ~ "{" ~ statements ~ "}" ~ else_stmt? }
+else_stmt = _{ "else" ~ "{" ~ statements ~ "}" }
+while_stmt = { "while" ~ "(" ~ cond ~ ")" ~ "{" ~ statements ~ "}" }
+
+// Function call
+call = { read_stmt 
+    | print_stmt 
+    | malloc_stmt
+    | free_stmt
+    | func_call
+}
+    read_stmt = { "read" ~ "(" ~ ident ~ ")" }
+    print_stmt = { "print" ~ "(" ~ expr ~ ")" }
+    malloc_stmt = { "malloc" ~ "(" ~ expr ~ ")" }
+    free_stmt = { "free" ~ "(" ~ expr ~ ")" }
+func_call = { ident ~ "(" ~ args? ~ ")" }
+args = _{ expr ~ ("," ~ expr)* }
+
+// Expressions
+expr = { atom_prefix* ~ atom ~ atom_postfix* ~ (bin_op ~ atom_prefix* ~ atom ~ atom_postfix*)* }
+    atom_prefix = _{ neg | cast | dereference | reference }
+        neg = { "-" }
+        cast = _{ "(" ~ base_type ~ ")" }
+        dereference = { "*" }
+        reference = { "&" }
+    bin_op = _{ plus | minus | times | divide }
+        plus = { "+" }
+        minus = { "-" }
+        times = { "*" }
+        divide = { "/" }
+    atom_postfix = _{ array_expr }
+atom = _{
+    call
+    | ident
+    | float_lit
+    | int_lit
+    | "(" ~ expr ~ ")"
+}
+array_expr = { "[" ~ expr ~ "]" }
+
+// Conditionals
+cond = { expr ~ cmp_op ~ expr }
+cmp_op = _{ equal | not_equal | less_equal | less | greater_equal | greater }
+    equal = { "==" }
+    not_equal = { "!=" }
+    less = { "<" }
+    less_equal = { "<=" }
+    greater = { ">" }
+    greater_equal = { ">=" }
+
+// Literals
+ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+int_lit = @{ ASCII_DIGIT+ }
+float_lit = @{ int_lit ~ "." ~ (ASCII_DIGIT)+ }
+str_lit = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+WHITESPACE = _{ ( NEWLINE | " " | "\t" )+ }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
